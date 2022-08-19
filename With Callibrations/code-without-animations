@@ -1,1 +1,89 @@
+#include<Wire.h>
+ 
+const int MPU_addr=0x68;
+int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+float sumAccX = 0.0;
+float sumAccY = 0.0;
+float sumAccZ = 0.0;
+float avgAccX =  0.0;
+float avgAccY =  0.0;
+float avgAccZ =  0.0;
+int minVal=265;
+int maxVal=402;
+ 
+double x;
+double y;
+double z;
 
+void average()
+{
+  int number = 20;
+    for(int x=0;x<number;x++)
+    {
+      // read raw accel/gyro measurements from device
+      AcX=Wire.read()<<8|Wire.read();
+      AcY=Wire.read()<<8|Wire.read();
+      AcZ=Wire.read()<<8|Wire.read();
+      GyX=Wire.read()<<8|Wire.read();
+      GyY=Wire.read()<<8|Wire.read();
+      GyZ=Wire.read()<<8|Wire.read();
+      sumAccX += AcX;
+      sumAccY += AcY;
+      sumAccZ += AcZ;
+      delay(1);
+    }
+    avgAccX = sumAccX/number;
+    avgAccY = sumAccY/number;
+    avgAccZ = sumAccZ/number;
+}
+
+void setup(){
+  Wire.begin();
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
+  Serial.begin(115200);
+}
+void loop(){
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_addr,14,true);
+  AcX=Wire.read()<<8|Wire.read();
+  AcY=Wire.read()<<8|Wire.read();
+  AcZ=Wire.read()<<8|Wire.read();
+  GyX=Wire.read()<<8|Wire.read();
+  GyY=Wire.read()<<8|Wire.read();
+  GyZ=Wire.read()<<8|Wire.read();
+  average();
+  AcX = (AcX+ avgAccX)/2;
+  AcY = (AcY+ avgAccY)/2;
+  AcZ = (AcZ+ avgAccZ)/2;
+  int xAng = map(AcX,minVal,maxVal,-90,90);
+  int yAng = map(AcY,minVal,maxVal,-90,90);
+  int zAng = map(AcZ,minVal,maxVal,-90,90);
+  
+  x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
+  y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
+  z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
+
+  if(x > 90) {
+    x -= 360;
+  }
+
+  if(y > 90) {
+    y -= 360;
+  }
+  y = y+4;
+  Serial.print("AngleX= ");
+  Serial.println(x);
+   
+  Serial.print("AngleY= ");
+  Serial.println(y);
+   
+  Serial.print("AngleZ= ");
+  Serial.println(z);
+  Serial.println("-----------------------------------------");
+  delay(400);
+}
